@@ -1,107 +1,116 @@
+import os
 import streamlit as st
 from gradio_client import Client, handle_file
 
-# Initialize Gradio Client
+# Temporary directory for saving uploaded files
+TEMP_DIR = "temp_uploads"
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+# Gradio Client Initialization
 client = Client("cvachet/pdf-chatbot")
 
-# Function to initialize PDF database
-def initialize_pdf_database(uploaded_pdfs):
-    pdf_files = [handle_file(pdf) for pdf in uploaded_pdfs]
+def initialize_pdf_database(uploaded_files, chunk_size, chunk_overlap):
     try:
-        result = client.predict(
-            list_file_obj=pdf_files,
-            chunk_size=600,
-            chunk_overlap=40,
-            api_name="/initialize_database"
-        )
-        return result
-    except Exception as e:
-        st.error(f"Failed to initialize PDF database: {e}")
-        return None
+        st.info("Initializing PDF database...")
+        file_paths = []
+        for uploaded_file in uploaded_files:
+            # Save file temporarily
+            temp_file_path = os.path.join(TEMP_DIR, uploaded_file.name)
+            with open(temp_file_path, "wb") as temp_file:
+                temp_file.write(uploaded_file.read())
+            file_paths.append(temp_file_path)
 
-# Function to initialize LLM
-def initialize_llm():
-    try:
+        # Use Gradio API to initialize the database
         result = client.predict(
-            llm_option="Mistral-7B-Instruct-v0.2",
-            llm_temperature=0.7,
-            max_tokens=1024,
-            top_k=3,
-            api_name="/initialize_LLM"
+            list_file_obj=[handle_file(file_path) for file_path in file_paths],
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            api_name="/initialize_database",
         )
-        return result
+        st.success("PDF Database Initialized Successfully!")
+        st.write(result)
     except Exception as e:
-        st.error(f"Failed to initialize LLM: {e}")
-        return None
+        st.error(f"Error during initialization: {str(e)}")
 
-# Function to handle user conversation
-def get_chat_response(user_message, history):
+    finally:
+        # Clean up temporary files
+        for file_path in file_paths:
+            os.remove(file_path)
+
+def initialize_llm(llm_option, llm_temperature, max_tokens, top_k):
     try:
+        st.info("Initializing LLM...")
         result = client.predict(
-            message=user_message,
+            llm_option=llm_option,
+            llm_temperature=llm_temperature,
+            max_tokens=max_tokens,
+            top_k=top_k,
+            api_name="/initialize_LLM",
+        )
+        st.success("LLM Initialized Successfully!")
+        st.write(result)
+    except Exception as e:
+        st.error(f"Error during LLM initialization: {str(e)}")
+        st.write("Full Error Details:")
+        st.write(e.args)  # Output the detailed error message
+
+
+def ask_question(message, history):
+    try:
+        st.info("Processing question...")
+        result = client.predict(
+            message=message,
             history=history,
-            api_name="/conversation"
+            api_name="/conversation",
         )
-        return result
+        st.success("Response Received!")
+        st.write(result[0])  # Display the response
     except Exception as e:
-        st.error(f"Failed to get chatbot response: {e}")
-        return None
+        st.error(f"Error during question processing: {str(e)}")
 
-# Main Streamlit application
-def main():
-    st.set_page_config(page_title="Chat with PDF", layout="wide")
-    st.header("Chat with Your PDF")
-    st.subheader("Upload PDFs, initialize the database, and ask questions.")
+# Streamlit UI
+st.title("Chat with PDF")
+st.sidebar.header("Menu")
 
-    # Sidebar for PDF Upload
-    with st.sidebar:
-        st.title("PDF Upload and Initialization")
-        pdf_docs = st.file_uploader("Upload your PDF Files", accept_multiple_files=True, type=["pdf"])
-        if st.button("Initialize PDF Database"):
-            if pdf_docs:
-                with st.spinner("Initializing PDF database..."):
-                    db_result = initialize_pdf_database(pdf_docs)
-                    if db_result:
-                        st.success(f"Database initialized: {db_result}")
-                    else:
-                        st.error("PDF database initialization failed.")
-            else:
-                st.warning("Please upload at least one PDF file.")
+# Sidebar Options
+with st.sidebar:
+    st.subheader("PDF Database Initialization")
+    uploaded_files = st.file_uploader(
+        "Upload PDF Files", accept_multiple_files=True, type=["pdf"]
+    )
+    chunk_size = st.slider("Chunk Size", min_value=100, max_value=2000, value=600)
+    chunk_overlap = st.slider("Chunk Overlap", min_value=0, max_value=100, value=40)
 
-        if st.button("Initialize LLM"):
-            with st.spinner("Initializing LLM..."):
-                llm_result = initialize_llm()
-                if llm_result:
-                    st.success(f"LLM initialized: {llm_result}")
-                else:
-                    st.error("LLM initialization failed.")
-
-    # Chat Interface
-    st.title("Chat Interface")
-    user_message = st.text_input("Ask a question:")
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    if st.button("Submit Question"):
-        if user_message.strip():
-            with st.spinner("Getting response..."):
-                chat_result = get_chat_response(user_message, st.session_state.chat_history)
-                if chat_result:
-                    # Extract chatbot response and update chat history
-                    response, history = chat_result[0], chat_result[1]
-                    st.session_state.chat_history.append((user_message, response))
-                    st.write(f"Chatbot: {response}")
-                else:
-                    st.error("Failed to get chatbot response.")
+    if st.button("Initialize PDF Database"):
+        if uploaded_files:
+            initialize_pdf_database(uploaded_files, chunk_size, chunk_overlap)
         else:
-            st.warning("Please enter a question.")
+            st.error("Please upload at least one PDF file.")
 
-    # Display Chat History
-    if st.session_state.chat_history:
-        st.write("Chat History:")
-        for user, bot in st.session_state.chat_history:
-            st.write(f"**You**: {user}")
-            st.write(f"**Bot**: {bot}")
+    st.subheader("LLM Initialization")
+    llm_option = st.selectbox(
+        "Select LLM Model",
+        options=[
+            'Mistral-7B-Instruct-v0.2', 'Mixtral-8x7B-Instruct-v0.1',
+            'Mistral-7B-Instruct-v0.1', 'gemma-7b-it', 'gemma-2b-it',
+            'zephyr-7b-beta', 'zephyr-7b-gemma-v0.1', 'Llama-2-7b-chat-hf',
+            'phi-2', 'TinyLlama-1.1B-Chat-v1.0', 'mpt-7b-instruct',
+            'falcon-7b-instruct', 'flan-t5-xxl'
+        ],
+        index=0
+    )
+    llm_temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7)
+    max_tokens = st.slider("Max Tokens", min_value=256, max_value=2048, value=1024)
+    top_k = st.slider("Top-K Samples", min_value=1, max_value=10, value=3)
 
-if __name__ == "__main__":
-    main()
+    if st.button("Initialize LLM"):
+        initialize_llm(llm_option, llm_temperature, max_tokens, top_k)
+
+# Main Chat Section
+st.subheader("Ask Questions from Your PDF")
+user_question = st.text_input("Type your question here:")
+if st.button("Submit Question"):
+    if user_question:
+        ask_question(user_question, history=[])
+    else:
+        st.error("Please enter a question.")
