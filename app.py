@@ -25,7 +25,7 @@ def transform_data(df):
             owner_count[owner]['Grand Total'] = 0  # Initialize Grand Total column with 0
         
         # If the ticket type matches one of the categories, increment its count
-        if ticket_type in owner_count[owner]:
+        if ticket_type in ticket_categories:
             owner_count[owner][ticket_type] += 1
         
         # Increment the Grand Total column for the owner
@@ -37,7 +37,7 @@ def transform_data(df):
     # Ensure the columns are in the correct order
     result_df = result_df[ticket_categories + ['Grand Total']]
     
-    # Remove rows where 'Owner' is NaN or None
+    # Remove rows where 'Owner' is NaN or None (extra rows like 'None')
     result_df = result_df.dropna(how='all')  # This removes rows where all values are NaN or None
 
     # Add a row at the end with totals for each column
@@ -47,8 +47,43 @@ def transform_data(df):
 
 # Streamlit UI
 def main():
-    st.title('Ticket Data Transformation')
+    # Customize Streamlit layout with black background and white text
+    st.markdown(
+        """
+        <style>
+        .reportview-container {
+            background-color: black;
+            color: white;
+        }
+        h1 {
+            color: #FF6347;  /* Tomato color */
+        }
+        .stButton>button {
+            background-color: #FF6347;
+            color: white;
+            border-radius: 5px;
+        }
+        .stFileUploader>label {
+            background-color: #FF6347;
+            color: white;
+            border-radius: 5px;
+        }
+        .stText {
+            color: white;
+        }
+        </style>
+        """, unsafe_allow_html=True
+    )
 
+    # Add a custom logo (Make sure to upload a logo in the directory)
+    st.image("logo.png", width=100)
+
+    # Title with animation for emphasis
+    st.markdown("<h1>Ticket Data Transformation</h1>", unsafe_allow_html=True)
+    
+    # Description for the transformed data
+    st.write("**Note:** The transformed data may not be 100% accurate. Please verify manually.")
+    
     # File Upload
     uploaded_file = st.file_uploader("Upload an Excel file", type="xlsx")
     if uploaded_file is not None:
@@ -56,14 +91,14 @@ def main():
         df = pd.read_excel(uploaded_file)
         
         # Check the structure of the raw data
-        st.write("Raw Data Preview:")
+        st.write("**Raw Data Preview:**")
         st.dataframe(df.head())
 
         # Transform the data
         transformed_data = transform_data(df)
         
         # Show the transformed data
-        st.write("Transformed Data:")
+        st.write("**Transformed Data:**")
         st.dataframe(transformed_data)
 
         # Provide an option to download the transformed data as an Excel file
