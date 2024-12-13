@@ -3,7 +3,7 @@ import streamlit as st
 
 # Function to load and transform the data
 def transform_data(df):
-    # Define the categories from the "Type" column in raw data
+    # Define the ticket categories
     ticket_categories = ['CR', 'TASK', 'BIBHCR', 'IM', 'LM', 'CAT', 'IMPL', 'Service Request']
     
     # Initialize a dictionary to store the transformed data
@@ -22,22 +22,21 @@ def transform_data(df):
         # If the owner is not in the dictionary, add them with initial values
         if owner not in owner_count:
             owner_count[owner] = {category: 0 for category in ticket_categories}  # Initialize all categories with 0
-            owner_count[owner]['Grand Total'] = 0  # Initialize Grand Total column with 0
         
         # If the ticket type matches one of the categories, increment its count
         if ticket_type in ticket_categories:
             owner_count[owner][ticket_type] += 1
-        
-        # Increment the Grand Total column for the owner based on ticket types count
-        owner_count[owner]['Grand Total'] += 1 if ticket_type in ticket_categories else 0
-
+    
     # Convert the dictionary to a DataFrame
     result_df = pd.DataFrame(owner_count).T  # Transpose so that owners are rows and categories are columns
     
     # Ensure the columns are in the correct order
-    result_df = result_df[ticket_categories + ['Grand Total']]
+    result_df = result_df[ticket_categories]
     
-    # Remove rows where Grand Total is zero
+    # Calculate the Grand Total column
+    result_df['Grand Total'] = result_df.sum(axis=1)
+    
+    # Remove rows where the Grand Total is zero (no tickets)
     result_df = result_df[result_df['Grand Total'] > 0]
 
     # Add a row at the end with totals for each column
