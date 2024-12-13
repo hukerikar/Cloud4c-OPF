@@ -19,7 +19,7 @@ def transform_data(df):
         
         ticket_type = row['Type']  # Type of the ticket (CR, TASK, etc.)
         
-        # If the owner is not in the dictionary, add them with initial values
+        # If the owner is not in the dictionary, add them with initial values for each ticket type
         if owner not in owner_count:
             owner_count[owner] = {category: 0 for category in ticket_categories}  # Initialize all categories with 0
         
@@ -33,7 +33,7 @@ def transform_data(df):
     # Ensure the columns are in the correct order
     result_df = result_df[ticket_categories]
     
-    # Calculate the Grand Total column
+    # Calculate the Grand Total column for each owner (sum of all ticket types)
     result_df['Grand Total'] = result_df.sum(axis=1)
     
     # Remove rows where the Grand Total is zero (no tickets)
