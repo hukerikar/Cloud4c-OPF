@@ -28,8 +28,8 @@ def transform_data(df):
         if ticket_type in ticket_categories:
             owner_count[owner][ticket_type] += 1
         
-        # Increment the Grand Total column for the owner
-        owner_count[owner]['Grand Total'] += 1
+        # Increment the Grand Total column for the owner based on ticket types count
+        owner_count[owner]['Grand Total'] += 1 if ticket_type in ticket_categories else 0
 
     # Convert the dictionary to a DataFrame
     result_df = pd.DataFrame(owner_count).T  # Transpose so that owners are rows and categories are columns
@@ -37,8 +37,8 @@ def transform_data(df):
     # Ensure the columns are in the correct order
     result_df = result_df[ticket_categories + ['Grand Total']]
     
-    # Remove rows where 'Owner' is NaN or None (extra rows like 'None')
-    result_df = result_df.dropna(how='all')  # This removes rows where all values are NaN or None
+    # Remove rows where Grand Total is zero
+    result_df = result_df[result_df['Grand Total'] > 0]
 
     # Add a row at the end with totals for each column
     result_df.loc['Total'] = result_df.sum(axis=0)
