@@ -4,7 +4,7 @@ import streamlit as st
 # Function to load and transform the data
 def transform_data(df):
     # Define the ticket categories
-    ticket_categories = ['Change Request', 'Task', 'BIBHCR', 'Incident', 'LM', 'CAT', 'IMPL', 'Service Request']
+    ticket_categories = ['Change Request', 'Task', 'BIBHCR', 'Incident', 'LM', 'CAT', 'IMPL', 'Service Request','Project','Alert']
     
     # Initialize a dictionary to store the transformed data
     owner_count = {}
